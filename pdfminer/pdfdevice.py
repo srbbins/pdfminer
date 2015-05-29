@@ -181,3 +181,52 @@ class TagExtractor(PDFDevice):
         self.begin_tag(tag, props)
         self._stack.pop(-1)
         return
+        
+class TagExtractor2Memory(PDFDevice):
+    def __init__(self, rsrcmgr, codec='utf-8'):
+        PDFDevice.__init__(self, rsrcmgr)
+        self.codec = codec
+        self.pageno = 0
+        self._stack = []
+        return
+
+    def render_string(self, textstate, seq):
+        font = textstate.font
+        text = ''
+        for obj in seq:
+            if not isinstance(obj, str):
+                continue
+            chars = font.decode(obj)
+            for cid in chars:
+                try:
+                    char = font.to_unichr(cid)
+                    text += char
+                except PDFUnicodeNotDefined:
+                    pass
+        return enc(text, self.codec)
+
+    def begin_page(self, page, ctm):
+        return('<page id="%s" bbox="%s" rotate="%d">' %
+                         (self.pageno, bbox2str(page.mediabox), page.rotate))
+
+    def end_page(self, page):
+        self.pageno += 1
+        return '</page>\n'
+
+    def begin_tag(self, tag, props=None):
+        s = ''
+        if isinstance(props, dict):
+            s = ''.join(' %s="%s"' % (enc(k), enc(str(v))) for (k, v)
+                        in sorted(props.iteritems()))
+        self._stack.append(tag)
+        return '<%s%s>' % (enc(tag.name), s)
+
+    def end_tag(self):
+        assert self._stack
+        tag = self._stack.pop(-1)
+        return '</%s>' % enc(tag.name)
+
+    def do_tag(self, tag, props=None):
+        self.begin_tag(tag, props)
+        self._stack.pop(-1)
+        return

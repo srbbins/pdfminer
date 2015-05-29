@@ -839,6 +839,35 @@ class PDFPageInterpreter(object):
         self.render_contents(page.resources, page.contents, ctm=ctm)
         self.device.end_page(page)
         return
+        
+    def process_page_to_mem(self, page):
+        content=''
+        if self.debug: logging.info('Processing page: %r' % page)
+        (x0, y0, x1, y1) = page.mediabox
+        if page.rotate == 90:
+            ctm = (0, -1, 1, 0, -y0, x1)
+        elif page.rotate == 180:
+            ctm = (-1, 0, 0, -1, x1, y1)
+        elif page.rotate == 270:
+            ctm = (0, 1, -1, 0, y1, -x0)
+        else:
+            ctm = (1, 0, 0, 1, -x0, -y0)
+        content=self.device.begin_page(page, ctm)
+        content+=self.render_contents_2_mem(page.resources, page.contents, ctm=ctm)
+        content+=self.device.end_page(page)
+        return content
+    # render_contents(resources, streams, ctm)
+    #   Render the content streams.
+    #   This method may be called recursively.
+    def render_contents_2_mem(self, resources, streams, ctm=MATRIX_IDENTITY):
+        if self.debug:
+            logging.info('render_contents: resources=%r, streams=%r, ctm=%r' %(resources, streams, ctm))
+        self.init_resources(resources)
+        self.init_state(ctm)
+        for2Mem=self.execute(list_value(streams))
+        print 'Streams'+str(streams)
+        print 'this is ret val'+for2Mem
+        return for2Mem
 
     # render_contents(resources, streams, ctm)
     #   Render the content streams.
